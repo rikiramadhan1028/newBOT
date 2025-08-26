@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: roku_trade
+      POSTGRES_USER: roku_user
+      POSTGRES_PASSWORD: roku_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  transaction-engine:
+    build: ./nodejs-transaction-engine
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - SOLANA_RPC_URL=${SOLANA_RPC_URL}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  python-bot:
+    build: ./python-bot-server
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - DATABASE_URL=postgresql://roku_user:roku_password@postgres:5432/roku_trade
+      - TRANSACTION_ENGINE_URL=http://transaction-engine:3000
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+      - transaction-engine
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

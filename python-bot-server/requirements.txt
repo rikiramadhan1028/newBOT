@@ -1,6 +1,7 @@
 python-telegram-bot
 aiohttp
 python-dotenv
+cryptography
 redis
 motor
 pymongo
